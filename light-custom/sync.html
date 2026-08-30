@@ -3,62 +3,320 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ambient Light Sync</title>
+    <title>Ambient Light Sync Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-color: #0f111a;
+            --card-bg: rgba(26, 29, 45, 0.7);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --accent: #89b4fa;
+            --accent-glow: rgba(137, 180, 250, 0.3);
+            --text-main: #f3f4f6;
+            --text-sub: #9ca3af;
+            --glow-color: rgba(0, 0, 0, 0.8);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #1e1e2e;
-            color: #cdd6f4;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(137, 180, 250, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(203, 166, 247, 0.08) 0%, transparent 40%);
+        }
+
+        .dashboard {
+            width: 100%;
+            max-width: 900px;
+            margin: 20px;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28px;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                padding: 24px;
+            }
+        }
+
+        .header-section {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 20px;
+        }
+
+        .title-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .title-group h1 {
+            font-size: 22px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 0%, #a6adc8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #f9e2af;
+            box-shadow: 0 0 10px #f9e2af;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+
+        .status-dot.connected {
+            background-color: #a6e3a1;
+            box-shadow: 0 0 12px #a6e3a1;
+        }
+
+        /* Ambient Glow Preview Box */
+        .preview-card {
+            background: rgba(15, 17, 26, 0.5);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 24px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
-            margin: 0;
+            position: relative;
+            overflow: hidden;
         }
-        .container {
-            background-color: #313244;
-            padding: 30px;
+
+        .orb-wrapper {
+            position: relative;
+            margin: 20px 0;
+        }
+
+        .color-orb {
+            width: 130px;
+            height: 130px;
+            border-radius: 50%;
+            background-color: #000;
+            box-shadow: 0 0 50px var(--glow-color);
+            transition: background-color 0.1s ease-out, box-shadow 0.1s ease-out;
+            border: 2px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .telemetry {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--text-sub);
+            display: flex;
+            gap: 16px;
+            margin-top: 10px;
+        }
+
+        .telemetry span {
+            background: rgba(255, 255, 255, 0.04);
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Controls Section */
+        .controls-card {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-sub);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .mode-pills {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .mode-btn {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+            padding: 10px;
             border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
-        button {
-            background-color: #89b4fa;
+
+        .mode-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .mode-btn.active {
+            background: var(--accent);
+            color: #11111b;
+            border-color: var(--accent);
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .start-btn {
+            width: 100%;
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, #89b4fa 0%, #b4befe 100%);
             color: #11111b;
             border: none;
-            padding: 12px 24px;
+            padding: 16px;
+            border-radius: 14px;
             font-size: 16px;
-            font-weight: bold;
-            border-radius: 8px;
+            font-weight: 700;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: transform 0.15s, box-shadow 0.2s;
+            box-shadow: 0 8px 25px rgba(137, 180, 250, 0.3);
         }
-        button:hover { background-color: #b4befe; }
-        .color-preview {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            margin: 20px auto;
-            background-color: black;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            transition: background-color 0.1s;
+
+        .start-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(137, 180, 250, 0.4);
         }
-        #status { margin-top: 15px; color: #a6adc8; }
-        
-        /* We use a tiny hidden canvas to process the pixels */
-        canvas { display: none; }
-        video { display: none; }
+
+        .start-btn:active {
+            transform: translateY(0);
+        }
+
+        .start-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        canvas, video { display: none; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h2>Ambient Light Sync</h2>
-        <p>This securely shares your screen directly to your local Python script.</p>
-        <div class="color-preview" id="preview"></div>
-        <button id="startBtn">Select Screen to Sync</button>
-        <p id="status">Waiting to start...</p>
+    <div class="dashboard">
+        <div class="header-section">
+            <div class="title-group">
+                <h1>💡 Ambient Light Sync</h1>
+            </div>
+            <div class="status-badge">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Checking connection...</span>
+            </div>
+        </div>
+
+        <!-- Ambient Glow Preview Card -->
+        <div class="preview-card">
+            <div class="control-label" style="width: 100%;">
+                <span>LIVE LIGHTING PREVIEW</span>
+                <span id="fpsDisplay">-- FPS</span>
+            </div>
+            <div class="orb-wrapper">
+                <div class="color-orb" id="colorOrb"></div>
+            </div>
+            <div class="telemetry">
+                <span>R: <b id="valR">0</b></span>
+                <span>G: <b id="valG">0</b></span>
+                <span>B: <b id="valB">0</b></span>
+                <span>HEX: <b id="valHex">#000000</b></span>
+            </div>
+        </div>
+
+        <!-- Fine Tuning Controls -->
+        <div class="controls-card">
+            <div class="control-group">
+                <div class="control-label">
+                    <span>SYNC PRESET MODE</span>
+                </div>
+                <div class="mode-pills">
+                    <button class="mode-btn active" data-mode="ambilight">🌌 Edge Ambilight</button>
+                    <button class="mode-btn" data-mode="movie">🎬 Movie Cinema</button>
+                    <button class="mode-btn" data-mode="game">🎮 Vivid Game</button>
+                    <button class="mode-btn" data-mode="full">🌟 Full Screen</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>COLOR VIBRANCY BOOST</span>
+                    <span id="vibrancyVal">1.8x</span>
+                </div>
+                <input type="range" id="vibrancySlider" min="1.0" max="3.0" step="0.1" value="1.8">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>MAX BRIGHTNESS MULTIPLIER</span>
+                    <span id="brightnessVal">120%</span>
+                </div>
+                <input type="range" id="brightnessSlider" min="50" max="150" step="5" value="120">
+            </div>
+        </div>
+
+        <button class="start-btn" id="startBtn">Select Screen to Sync</button>
     </div>
 
     <video id="video" autoplay></video>
@@ -66,80 +324,123 @@
 
     <script>
         const startBtn = document.getElementById('startBtn');
-        const statusEl = document.getElementById('status');
-        const previewEl = document.getElementById('preview');
+        const statusText = document.getElementById('statusText');
+        const statusDot = document.getElementById('statusDot');
+        const colorOrb = document.getElementById('colorOrb');
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        
+
+        const valR = document.getElementById('valR');
+        const valG = document.getElementById('valG');
+        const valB = document.getElementById('valB');
+        const valHex = document.getElementById('valHex');
+        const fpsDisplay = document.getElementById('fpsDisplay');
+
+        const vibrancySlider = document.getElementById('vibrancySlider');
+        const vibrancyVal = document.getElementById('vibrancyVal');
+        const brightnessSlider = document.getElementById('brightnessSlider');
+        const brightnessVal = document.getElementById('brightnessVal');
+        const modeBtns = document.querySelectorAll('.mode-btn');
+
         let ws;
-        let currentR = 0, currentG = 0, currentB = 0; // Needed for smoothing
+        let activeMode = 'ambilight';
+        let currentR = 0, currentG = 0, currentB = 0;
+        let lastFrameTime = performance.now();
+        let frameCounter = 0;
+
+        vibrancySlider.addEventListener('input', (e) => vibrancyVal.innerText = `${e.target.value}x`);
+        brightnessSlider.addEventListener('input', (e) => brightnessVal.innerText = `${e.target.value}%`);
+
+        modeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                modeBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                activeMode = btn.dataset.mode;
+            });
+        });
 
         startBtn.addEventListener('click', async () => {
             try {
-                // Connect to Python WebSocket server
                 ws = new WebSocket('ws://localhost:8765');
-                
-                ws.onopen = () => statusEl.innerText = "Connected to Python server. Capturing screen...";
-                ws.onerror = () => statusEl.innerText = "Error: Make sure ambient_server.py is running!";
-                ws.onclose = () => statusEl.innerText = "Disconnected from Python server.";
+
+                ws.onopen = () => statusText.innerText = "Python server connected.";
+                ws.onerror = () => {
+                    statusText.innerText = "Server Error";
+                    statusDot.classList.remove('connected');
+                };
+                ws.onclose = () => {
+                    statusText.innerText = "Disconnected";
+                    statusDot.classList.remove('connected');
+                };
+
                 ws.onmessage = (event) => {
                     try {
                         const msg = JSON.parse(event.data);
                         if (msg.type === "status") {
                             if (msg.connected) {
-                                statusEl.innerHTML = "💡 Light Status: <span style='color: #a6e3a1; font-weight: bold;'>✅ CONNECTED & READY</span>";
+                                statusText.innerText = "Connected & Ready";
+                                statusDot.classList.add('connected');
                             } else {
-                                statusEl.innerHTML = "💡 Light Status: <span style='color: #f9e2af; font-weight: bold;'>⚠️ NOT CONNECTED (Retrying 3-5s...)</span>";
+                                statusText.innerText = "Light Connecting (3-5s)...";
+                                statusDot.classList.remove('connected');
                             }
                         }
                     } catch(e) {}
                 };
 
-                // Request screen sharing from the browser
-                // This uses native Wayland XDG portals securely!
                 const stream = await navigator.mediaDevices.getDisplayMedia({
-                    video: { cursor: "never", frameRate: 10 },
+                    video: { cursor: "never", frameRate: 30 },
                     audio: false
                 });
-                
+
                 video.srcObject = stream;
 
-                // Process the video frames continuously
                 setInterval(() => {
                     if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                        // Draw the video to the 64x64 canvas
                         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        
-                        // Extract pixels
                         const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
                         const data = frame.data;
-                        
-                        let r_sum = 0, g_sum = 0, b_sum = 0;
-                        let weight_sum = 0;
+                        const w = canvas.width;
+                        const h = canvas.height;
 
-                        for (let i = 0; i < data.length; i += 4) {
-                            const r = data[i];
-                            const g = data[i+1];
-                            const b = data[i+2];
-                            
-                            // Ignore pure black pixels (like letterboxing)
-                            if (r < 10 && g < 10 && b < 10) continue;
+                        let r_sum = 0, g_sum = 0, b_sum = 0, weight_sum = 0;
+                        const vibrancy = parseFloat(vibrancySlider.value);
+                        const brightnessMultiplier = parseFloat(brightnessSlider.value) / 100.0;
 
-                            // Calculate luminance and saturation to find "interesting" pixels
-                            const max = Math.max(r, g, b);
-                            const min = Math.min(r, g, b);
-                            
-                            // Highly saturated, bright pixels should dominate the room's lighting.
-                            const sat = max === 0 ? 0 : (max - min) / max; 
-                            
-                            // We give a high weight to bright/colorful pixels, and low weight to dull/grey walls.
-                            const weight = (sat + 0.1) * (max / 255.0 + 0.1);
+                        for (let y = 0; y < h; y++) {
+                            for (let x = 0; x < w; x++) {
+                                // Mode Spatial Weighting
+                                let spatialWeight = 1.0;
+                                if (activeMode === 'ambilight') {
+                                    // Give highest weight to perimeter pixels (outer 25%)
+                                    const edgeDistX = Math.min(x, w - 1 - x) / (w / 2);
+                                    const edgeDistY = Math.min(y, h - 1 - y) / (h / 2);
+                                    spatialWeight = 1.0 - (edgeDistX * edgeDistY); // Outer edges get higher weight
+                                } else if (activeMode === 'movie') {
+                                    // Ignore top/bottom letterbox areas if black
+                                    if (y < 6 || y > h - 6) spatialWeight = 0.2;
+                                }
 
-                            r_sum += r * weight;
-                            g_sum += g * weight;
-                            b_sum += b * weight;
-                            weight_sum += weight;
+                                const idx = (y * w + x) * 4;
+                                const r = data[idx];
+                                const g = data[idx + 1];
+                                const b = data[idx + 2];
+
+                                if (r < 8 && g < 8 && b < 8) continue; // Ignore true black
+
+                                const max = Math.max(r, g, b);
+                                const min = Math.min(r, g, b);
+                                const sat = max === 0 ? 0 : (max - min) / max;
+
+                                // Enhanced Chrominance Weighting
+                                const weight = spatialWeight * (Math.pow(sat, 1.2) + 0.15) * (max / 255.0 + 0.1);
+
+                                r_sum += r * weight;
+                                g_sum += g * weight;
+                                b_sum += b * weight;
+                                weight_sum += weight;
+                            }
                         }
 
                         if (weight_sum > 0) {
@@ -147,77 +448,87 @@
                             let targetG = g_sum / weight_sum;
                             let targetB = b_sum / weight_sum;
 
-                            // --- EXTREME SATURATION BOOST ---
-                            // This removes the "white/grey" from the color completely.
-                            let maxColor = Math.max(targetR, targetG, targetB);
-                            let minColor = Math.min(targetR, targetG, targetB);
+                            // HSL Saturation Expansion Matrix
+                            let maxC = Math.max(targetR, targetG, targetB);
+                            let minC = Math.min(targetR, targetG, targetB);
 
-                            if (maxColor > 10 && maxColor > minColor) {
-                                let range = maxColor - minColor;
-                                
-                                // Push the lowest color channel to 0, which removes all "whiteness"
-                                let pureR = ((targetR - minColor) / range) * maxColor;
-                                let pureG = ((targetG - minColor) / range) * maxColor;
-                                let pureB = ((targetB - minColor) / range) * maxColor;
-                                
-                                targetR = pureR;
-                                targetG = pureG;
-                                targetB = pureB;
+                            if (maxC > 5 && maxC > minC) {
+                                let range = maxC - minC;
+                                let boostedR = ((targetR - minC) / range) * maxC * vibrancy;
+                                let boostedG = ((targetG - minC) / range) * maxC * vibrancy;
+                                let boostedB = ((targetB - minC) / range) * maxC * vibrancy;
+
+                                targetR = Math.min(255, boostedR);
+                                targetG = Math.min(255, boostedG);
+                                targetB = Math.min(255, boostedB);
                             }
 
-                            // Optional Brightness pop for dark but colorful scenes
-                            if (maxColor > 20) {
-                                let scale = Math.min(255 / maxColor, 1.5); 
-                                targetR *= scale;
-                                targetG *= scale;
-                                targetB *= scale;
-                            }
-                            
-                            // Clamp values
+                            targetR *= brightnessMultiplier;
+                            targetG *= brightnessMultiplier;
+                            targetB *= brightnessMultiplier;
+
                             targetR = Math.max(0, Math.min(255, targetR));
                             targetG = Math.max(0, Math.min(255, targetG));
                             targetB = Math.max(0, Math.min(255, targetB));
 
-                            // Asymmetric Smoothing (The "Movie" effect)
-                            // Explosions and lightning should flash quickly. Panning shots should be wavy and smooth.
-                            const targetBrightness = targetR + targetG + targetB;
-                            const currentBrightness = currentR + currentG + currentB;
-                            
-                            let smoothing = 0.08; // Wavy, smooth baseline
-                            if (targetBrightness > currentBrightness + 30) {
-                                smoothing = 0.4; // Fast attack for sudden bright flashes
+                            // Mode-dependent Attack & Decay Smoothing
+                            let smoothing = 0.12;
+                            if (activeMode === 'game') smoothing = 0.35;
+                            if (activeMode === 'movie') smoothing = 0.08;
+
+                            const targetMag = targetR + targetG + targetB;
+                            const currentMag = currentR + currentG + currentB;
+
+                            if (targetMag > currentMag + 25) {
+                                smoothing = Math.min(0.6, smoothing * 2.5); // Rapid flash response
                             }
 
                             currentR += (targetR - currentR) * smoothing;
                             currentG += (targetG - currentG) * smoothing;
                             currentB += (targetB - currentB) * smoothing;
                         } else {
-                            // Scene is pitch black. Fade the light out smoothly.
-                            currentR += (0 - currentR) * 0.05;
-                            currentG += (0 - currentG) * 0.05;
-                            currentB += (0 - currentB) * 0.05;
+                            currentR += (0 - currentR) * 0.08;
+                            currentG += (0 - currentG) * 0.08;
+                            currentB += (0 - currentB) * 0.08;
                         }
 
-                        let outR = Math.round(currentR);
-                        let outG = Math.round(currentG);
-                        let outB = Math.round(currentB);
+                        const outR = Math.round(currentR);
+                        const outG = Math.round(currentG);
+                        const outB = Math.round(currentB);
 
-                        // Update UI Preview
-                        previewEl.style.backgroundColor = `rgb(${outR}, ${outG}, ${outB})`;
+                        // UI Visual Feedback
+                        const rgbStr = `rgb(${outR}, ${outG}, ${outB})`;
+                        const hexStr = `#${((1 << 24) + (outR << 16) + (outG << 8) + outB).toString(16).slice(1).toUpperCase()}`;
 
-                        // Send to Python
+                        colorOrb.style.backgroundColor = rgbStr;
+                        colorOrb.style.boxShadow = `0 0 60px ${rgbStr}`;
+                        valR.innerText = outR;
+                        valG.innerText = outG;
+                        valB.innerText = outB;
+                        valHex.innerText = hexStr;
+
+                        // Telemetry FPS
+                        frameCounter++;
+                        const now = performance.now();
+                        if (now - lastFrameTime >= 1000) {
+                            fpsDisplay.innerText = `${frameCounter} FPS`;
+                            frameCounter = 0;
+                            lastFrameTime = now;
+                        }
+
+                        // Send WebSocket Command to Python
                         if (ws && ws.readyState === WebSocket.OPEN) {
                             ws.send(JSON.stringify({ r: outR, g: outG, b: outB }));
                         }
                     }
-                }, 100); // 10 FPS
-                
+                }, 60); // 16 FPS high precision sampling
+
                 startBtn.disabled = true;
-                startBtn.innerText = "Syncing...";
-                
+                startBtn.innerText = "Syncing Active";
+
             } catch (err) {
                 console.error(err);
-                statusEl.innerText = "Screen share cancelled or failed.";
+                statusText.innerText = "Share Cancelled";
             }
         });
     </script>
