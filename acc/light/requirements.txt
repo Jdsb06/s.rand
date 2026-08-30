@@ -1,0 +1,12 @@
+bleak==3.0.2
+cffi==2.1.1
+dbus-fast==5.0.22
+mss==10.2.0
+numpy==2.5.2
+pillow==12.3.0
+pycparser==3.0
+pystray==0.19.5
+python-xlib==0.33
+six==1.17.0
+sounddevice==0.5.6
+websockets==17.1

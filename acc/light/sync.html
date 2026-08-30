@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ambient Light Sync</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e2e;
+            color: #cdd6f4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #313244;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+        button {
+            background-color: #89b4fa;
+            color: #11111b;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover { background-color: #b4befe; }
+        .color-preview {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            margin: 20px auto;
+            background-color: black;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            transition: background-color 0.1s;
+        }
+        #status { margin-top: 15px; color: #a6adc8; }
+        
+        /* We use a tiny hidden canvas to process the pixels */
+        canvas { display: none; }
+        video { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Ambient Light Sync</h2>
+        <p>This securely shares your screen directly to your local Python script.</p>
+        <div class="color-preview" id="preview"></div>
+        <button id="startBtn">Select Screen to Sync</button>
+        <p id="status">Waiting to start...</p>
+    </div>
+
+    <video id="video" autoplay></video>
+    <canvas id="canvas" width="64" height="64"></canvas>
+
+    <script>
+        const startBtn = document.getElementById('startBtn');
+        const statusEl = document.getElementById('status');
+        const previewEl = document.getElementById('preview');
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        
+        let ws;
+        let currentR = 0, currentG = 0, currentB = 0; // Needed for smoothing
+
+        startBtn.addEventListener('click', async () => {
+            try {
+                // Connect to Python WebSocket server
+                ws = new WebSocket('ws://localhost:8765');
+                
+                ws.onopen = () => statusEl.innerText = "Connected to Python server. Capturing screen...";
+                ws.onerror = () => statusEl.innerText = "Error: Make sure ambient_server.py is running!";
+                ws.onclose = () => statusEl.innerText = "Disconnected from Python server.";
+                ws.onmessage = (event) => {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        if (msg.type === "status") {
+                            if (msg.connected) {
+                                statusEl.innerHTML = "💡 Light Status: <span style='color: #a6e3a1; font-weight: bold;'>✅ CONNECTED & READY</span>";
+                            } else {
+                                statusEl.innerHTML = "💡 Light Status: <span style='color: #f9e2af; font-weight: bold;'>⚠️ NOT CONNECTED (Retrying 3-5s...)</span>";
+                            }
+                        }
+                    } catch(e) {}
+                };
+
+                // Request screen sharing from the browser
+                // This uses native Wayland XDG portals securely!
+                const stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { cursor: "never", frameRate: 10 },
+                    audio: false
+                });
+                
+                video.srcObject = stream;
+
+                // Process the video frames continuously
+                setInterval(() => {
+                    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                        // Draw the video to the 64x64 canvas
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        
+                        // Extract pixels
+                        const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const data = frame.data;
+                        
+                        let r_sum = 0, g_sum = 0, b_sum = 0;
+                        let weight_sum = 0;
+
+                        for (let i = 0; i < data.length; i += 4) {
+                            const r = data[i];
+                            const g = data[i+1];
+                            const b = data[i+2];
+                            
+                            // Ignore pure black pixels (like letterboxing)
+                            if (r < 10 && g < 10 && b < 10) continue;
+
+                            // Calculate luminance and saturation to find "interesting" pixels
+                            const max = Math.max(r, g, b);
+                            const min = Math.min(r, g, b);
+                            
+                            // Highly saturated, bright pixels should dominate the room's lighting.
+                            const sat = max === 0 ? 0 : (max - min) / max; 
+                            
+                            // We give a high weight to bright/colorful pixels, and low weight to dull/grey walls.
+                            const weight = (sat + 0.1) * (max / 255.0 + 0.1);
+
+                            r_sum += r * weight;
+                            g_sum += g * weight;
+                            b_sum += b * weight;
+                            weight_sum += weight;
+                        }
+
+                        if (weight_sum > 0) {
+                            let targetR = r_sum / weight_sum;
+                            let targetG = g_sum / weight_sum;
+                            let targetB = b_sum / weight_sum;
+
+                            // --- EXTREME SATURATION BOOST ---
+                            // This removes the "white/grey" from the color completely.
+                            let maxColor = Math.max(targetR, targetG, targetB);
+                            let minColor = Math.min(targetR, targetG, targetB);
+
+                            if (maxColor > 10 && maxColor > minColor) {
+                                let range = maxColor - minColor;
+                                
+                                // Push the lowest color channel to 0, which removes all "whiteness"
+                                let pureR = ((targetR - minColor) / range) * maxColor;
+                                let pureG = ((targetG - minColor) / range) * maxColor;
+                                let pureB = ((targetB - minColor) / range) * maxColor;
+                                
+                                targetR = pureR;
+                                targetG = pureG;
+                                targetB = pureB;
+                            }
+
+                            // Optional Brightness pop for dark but colorful scenes
+                            if (maxColor > 20) {
+                                let scale = Math.min(255 / maxColor, 1.5); 
+                                targetR *= scale;
+                                targetG *= scale;
+                                targetB *= scale;
+                            }
+                            
+                            // Clamp values
+                            targetR = Math.max(0, Math.min(255, targetR));
+                            targetG = Math.max(0, Math.min(255, targetG));
+                            targetB = Math.max(0, Math.min(255, targetB));
+
+                            // Asymmetric Smoothing (The "Movie" effect)
+                            // Explosions and lightning should flash quickly. Panning shots should be wavy and smooth.
+                            const targetBrightness = targetR + targetG + targetB;
+                            const currentBrightness = currentR + currentG + currentB;
+                            
+                            let smoothing = 0.08; // Wavy, smooth baseline
+                            if (targetBrightness > currentBrightness + 30) {
+                                smoothing = 0.4; // Fast attack for sudden bright flashes
+                            }
+
+                            currentR += (targetR - currentR) * smoothing;
+                            currentG += (targetG - currentG) * smoothing;
+                            currentB += (targetB - currentB) * smoothing;
+                        } else {
+                            // Scene is pitch black. Fade the light out smoothly.
+                            currentR += (0 - currentR) * 0.05;
+                            currentG += (0 - currentG) * 0.05;
+                            currentB += (0 - currentB) * 0.05;
+                        }
+
+                        let outR = Math.round(currentR);
+                        let outG = Math.round(currentG);
+                        let outB = Math.round(currentB);
+
+                        // Update UI Preview
+                        previewEl.style.backgroundColor = `rgb(${outR}, ${outG}, ${outB})`;
+
+                        // Send to Python
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({ r: outR, g: outG, b: outB }));
+                        }
+                    }
+                }, 100); // 10 FPS
+                
+                startBtn.disabled = true;
+                startBtn.innerText = "Syncing...";
+                
+            } catch (err) {
+                console.error(err);
+                statusEl.innerText = "Screen share cancelled or failed.";
+            }
+        });
+    </script>
+</body>
+</html>
